@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hedera Dynamic NFT Tester</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1, h2 { color: #333; }
+        form { margin-bottom: 20px; }
+        input, textarea { width: 100%; padding: 5px; margin-bottom: 10px; }
+        button { padding: 10px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        #result { background-color: #f1f1f1; padding: 10px; white-space: pre-wrap; }
+        #nftInfo { background-color: #e0e0e0; padding: 10px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Hedera Dynamic NFT Tester</h1>
+
+    <h2>Create Collection</h2>
+    <form id="createCollectionForm">
+        <input type="text" id="collectionName" placeholder="Collection Name" required>
+        <input type="text" id="collectionSymbol" placeholder="Collection Symbol" required>
+        <textarea id="collectionDescription" placeholder="Collection Description" required></textarea>
+        <button type="submit">Create Collection</button>
+    </form>
+
+    <h2>Create NFT</h2>
+    <form id="createNFTForm">
+        <input type="text" id="collectionId" placeholder="Collection ID" required>
+        <input type="text" id="nftName" placeholder="NFT Name" required>
+        <textarea id="nftDescription" placeholder="NFT Description" required></textarea>
+        <input type="text" id="nftImage" placeholder="NFT Image URL" required>
+        <button type="submit">Create NFT</button>
+    </form>
+
+    <h2>Get NFT Info</h2>
+    <form id="getNFTForm">
+        <input type="text" id="getNftId" placeholder="NFT ID" required>
+        <button type="submit">Get NFT Info</button>
+    </form>
+
+    <h2>Write Event</h2>
+    <form id="writeEventForm">
+        <input type="text" id="eventNftId" placeholder="NFT ID" required>
+        <input type="text" id="eventName" placeholder="Event Name">
+        <textarea id="eventDescription" placeholder="Event Description"></textarea>
+        <button type="submit">Write Event</button>
+    </form>
+
+    <h2>Result</h2>
+    <pre id="result"></pre>
+
+    <h2>NFT Info</h2>
+    <div id="nftInfo"></div>
+
+    <script>
+        const API_URL = 'http://localhost:3000';
+
+        async function makeRequest(url, method, body = null) {
+            const options = {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+            };
+            if (body) options.body = JSON.stringify(body);
+
+            const response = await fetch(url, options);
+            const data = await response.json();
+            document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+            
+            // Display NFT info in a more readable format
+            if (method === 'GET' && url.includes('/nft/')) {
+                displayNFTInfo(data);
+            }
+        }
+
+        function displayNFTInfo(data) {
+            const nftInfoDiv = document.getElementById('nftInfo');
+            nftInfoDiv.innerHTML = `
+                <p><strong>Token ID:</strong> ${data.tokenId}</p>
+                <p><strong>Serial Number:</strong> ${data.serialNumber}</p>
+                <p><strong>Owner:</strong> ${data.owner}</p>
+                <p><strong>Creation Time:</strong> ${data.creationTime}</p>
+                <p><strong>Topic ID:</strong> ${data.topicId}</p>
+                <h3>Metadata:</h3>
+                <pre>${JSON.stringify(data.metadata, null, 2)}</pre>
+            `;
+        }
+
+        document.getElementById('createCollectionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const body = {
+                name: document.getElementById('collectionName').value,
+                symbol: document.getElementById('collectionSymbol').value,
+                description: document.getElementById('collectionDescription').value,
+            };
+            await makeRequest(`${API_URL}/collection`, 'POST', body);
+        });
+
+        document.getElementById('createNFTForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const collectionId = document.getElementById('collectionId').value;
+            const body = {
+                name: document.getElementById('nftName').value,
+                description: document.getElementById('nftDescription').value,
+                image: document.getElementById('nftImage').value,
+                attributes: [],
+            };
+            await makeRequest(`${API_URL}/nft/${collectionId}`, 'POST', body);
+        });
+
+        document.getElementById('getNFTForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nftId = document.getElementById('getNftId').value;
+            await makeRequest(`${API_URL}/nft/${nftId}`, 'GET');
+        });
+
+        document.getElementById('writeEventForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nftId = document.getElementById('eventNftId').value;
+            const body = {
+                name: document.getElementById('eventName').value,
+                description: document.getElementById('eventDescription').value,
+            };
+            await makeRequest(`${API_URL}/nft/${nftId}/event`, 'POST', body);
+        });
+    </script>
+</body>
+</html>
