@@ -16,7 +16,7 @@ export class NFTService {
     };
 
     // Create a topic for this NFT
-    const topicId = await this.hederaService.createTopic(`NFT Update Topic - ${collectionId}`);
+    const topicId = await this.hederaService.createTopic(`NFT Topic - ${collectionId}`);
 
     // Add topicId to the metadata
     const metadataWithTopic = {
@@ -27,10 +27,7 @@ export class NFTService {
     // Create an immutable file with metadata including topicId
     const fileId = await this.hederaService.createImmutableFile(metadataWithTopic);
 
-    // Convert metadata to base64 encoded JSON string
-    const onChainMetadata = Buffer.from(JSON.stringify({fileId, topicId})).toString('base64');
-
-    const serialNumber = await this.hederaService.mintNFT(collectionId, onChainMetadata);
+    const serialNumber = await this.hederaService.mintNFT(collectionId, fileId);
     return `${collectionId}:${serialNumber}`;
   }
 
@@ -42,33 +39,31 @@ export class NFTService {
 
     const nftInfo = await this.hederaService.getNFTInfo(collectionId, serialNumber);
     
-    console.log('Raw metadata:', nftInfo.metadata);
+    console.log('NFT Info:', nftInfo);
 
-    return {
-      ...nftInfo,
-      metadata: nftInfo.metadata,
-    };
+    return nftInfo;
   }
 
-  async writeEvent(nftId: string, updateNFTDto: UpdateNFTDto): Promise<void> {
+  async writeEvent(nftId: string, message: {name: string, description: string}): Promise<void> {
     const [collectionId, serialNumber] = nftId.split(':');
     if (!collectionId || !serialNumber) {
       throw new NotFoundException('Invalid NFT ID format');
     }
 
+    console.log('Writing event to NFT:', nftId);
+    console.log('Message:', message);
+
     const currentInfo = await this.getNFTInfo(nftId);
-    const updatedMetadata = {
-      ...currentInfo.metadata,
-      ...updateNFTDto,
+
+    //add timestamp to message
+    const messageWithTimestamp = {
+      name: message.name,
+      description: message.description,
+      timestamp: new Date().toISOString(),
     };
 
     // Submit a message to the NFT's topic
-    await this.hederaService.submitMessage(currentInfo.metadata.topicId, JSON.stringify({
-      type: 'MetadataUpdate',
-      nftId,
-      updatedMetadata,
-      timestamp: new Date().toISOString(),
-    }));
+    await this.hederaService.submitMessage(currentInfo.metadata.topicId, JSON.stringify(messageWithTimestamp));
   }
 
   async getNFTHistory(nftId: string): Promise<any[]> {

@@ -71,7 +71,7 @@ export class HederaService implements OnModuleInit, OnModuleDestroy {
 
     const mintTx = await new TokenMintTransaction()
       .setTokenId(collectionId)
-      .setMetadata([Buffer.from(fileId)])
+      .setMetadata([Buffer.from(fileId.toString())])
       .freezeWith(this.client);
 
     const mintTxSign = await mintTx.sign(supplyKey);
@@ -129,21 +129,49 @@ export class HederaService implements OnModuleInit, OnModuleDestroy {
       throw new Error('NFT not found');
     }
 
-    const fileId = Buffer.from(nftInfo[0].metadata).toString('utf8');
-    const fileContents = await this.getFileContents(fileId);
+    let metadata = nftInfo[0].metadata;
+    let parsedMetadata: any;
+    let topicId: string | undefined;
+    let messages: Array<{ message: string }> | undefined;
 
-    //read topic on fileContents.topicId
-    const topicId = fileContents.topicId;
-    const messages = await this.getMessages(topicId, new Date(0), 100, 10000); //!Not working
+    // Convert Buffer to string
+    const metadataString = metadata.toString().trim();
 
-    return {
+    // Check if the metadata is a valid topic ID
+    if (metadataString.match(/^0\.0\.\d+$/)) {
+      //read metadata as a file
+      const fileId = metadataString;
+      parsedMetadata = await this.getFileContents(fileId);
+
+      // Fetch messages for the topic
+      messages = await this.getMessages(parsedMetadata.topicId, new Date(0), 100, 10000);
+    } else {
+      try {
+        // Try to parse as JSON
+        parsedMetadata = JSON.parse(metadataString);
+      } catch (error) {
+        console.error('Error parsing metadata as JSON:', error);
+        // If parsing fails, return the metadata as is
+        parsedMetadata = metadataString;
+      }
+    }
+
+    const result = {
       tokenId: nftInfo[0].nftId.tokenId.toString(),
       serialNumber: nftInfo[0].nftId.serial.toString(),
       owner: nftInfo[0].accountId.toString(),
-      metadata: fileContents,
-      // messages: messages,
+      metadata: parsedMetadata,
+      messages: messages,
+      rawMetadata: metadataString,
       creationTime: nftInfo[0].creationTime.toDate(),
     };
+
+    if (topicId) {
+      result['topicId'] = topicId;
+      result['messages'] = messages;
+    }
+
+    return result;
   }
 
   async createTopic(memo: string): Promise<string> {
@@ -171,10 +199,11 @@ export class HederaService implements OnModuleInit, OnModuleDestroy {
     return receipt.status.toString();
   }
 
-  async getMessages(topicId: string, startTime: Date, messageCount: number, timeout: number): Promise<Array<{ message: string, timestamp: Date }>> {
-    return new Promise<Array<{ message: string, timestamp: Date }>>((resolve, reject) => {
-      const messages: Array<{ message: string, timestamp: Date }> = [];
+  async getMessages(topicId: string, startTime: Date, messageCount: number, timeout: number): Promise<Array<{ message: string }>> {
+    return new Promise<Array<{ message: string }>>((resolve, reject) => {
+      const messages = [];
       const topicIdObj = TopicId.fromString(topicId);
+      console.log(`Fetching messages for topic ${topicId}`);
 
       const subscription = new TopicMessageQuery()
         .setTopicId(topicIdObj)
@@ -183,26 +212,28 @@ export class HederaService implements OnModuleInit, OnModuleDestroy {
           this.client,
           (error) => {
             if (error) {
-              this.logger.error(`Subscription error: ${error}`);
+              console.error(`Subscription error: ${error}`);
               subscription.unsubscribe();
             }
           },
           (message) => {
-            const buffer = Buffer.from(message.contents).toString("utf8");
-            const parsedMessage = JSON.parse(buffer);
-            messages.push({
-              message: parsedMessage,
-              timestamp: message.consensusTimestamp.toDate()
-            });
-            if (messages.length >= messageCount) {
-              subscription.unsubscribe();
-              resolve(messages);
+            try {
+              const buffer = Buffer.from(message.contents).toString("utf8");
+              const parsedMessage = JSON.parse(buffer);
+              messages.push(parsedMessage);
+              if (messages.length >= messageCount) {
+                subscription.unsubscribe();
+                resolve(messages);
+              }
+            } catch (parseError) {
+              console.error(`Error parsing message: ${parseError}`);
             }
           }
         );
 
       setTimeout(() => {
         subscription.unsubscribe();
+        // Resolvemos com as mensagens que temos, mesmo se não atingirmos messageCount
         resolve(messages);
       }, timeout);
     });

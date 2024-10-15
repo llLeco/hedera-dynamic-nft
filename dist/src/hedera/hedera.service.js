@@ -92,7 +92,7 @@ let HederaService = HederaService_1 = class HederaService {
         const supplyKey = sdk_1.PrivateKey.fromString(process.env.HEDERA_PRIVATE_KEY);
         const mintTx = await new sdk_1.TokenMintTransaction()
             .setTokenId(collectionId)
-            .setMetadata([Buffer.from(fileId)])
+            .setMetadata([Buffer.from(fileId.toString())])
             .freezeWith(this.client);
         const mintTxSign = await mintTx.sign(supplyKey);
         const mintTxSubmit = await mintTxSign.execute(this.client);
@@ -137,17 +137,39 @@ let HederaService = HederaService_1 = class HederaService {
         if (nftInfo.length === 0) {
             throw new Error('NFT not found');
         }
-        const fileId = Buffer.from(nftInfo[0].metadata).toString('utf8');
-        const fileContents = await this.getFileContents(fileId);
-        const topicId = fileContents.topicId;
-        const messages = await this.getMessages(topicId, new Date(0), 100, 10000);
-        return {
+        let metadata = nftInfo[0].metadata;
+        let parsedMetadata;
+        let topicId;
+        let messages;
+        const metadataString = metadata.toString().trim();
+        if (metadataString.match(/^0\.0\.\d+$/)) {
+            const fileId = metadataString;
+            parsedMetadata = await this.getFileContents(fileId);
+            messages = await this.getMessages(parsedMetadata.topicId, new Date(0), 100, 10000);
+        }
+        else {
+            try {
+                parsedMetadata = JSON.parse(metadataString);
+            }
+            catch (error) {
+                console.error('Error parsing metadata as JSON:', error);
+                parsedMetadata = metadataString;
+            }
+        }
+        const result = {
             tokenId: nftInfo[0].nftId.tokenId.toString(),
             serialNumber: nftInfo[0].nftId.serial.toString(),
             owner: nftInfo[0].accountId.toString(),
-            metadata: fileContents,
+            metadata: parsedMetadata,
+            messages: messages,
+            rawMetadata: metadataString,
             creationTime: nftInfo[0].creationTime.toDate(),
         };
+        if (topicId) {
+            result['topicId'] = topicId;
+            result['messages'] = messages;
+        }
+        return result;
     }
     async createTopic(memo) {
         const transaction = new sdk_1.TopicCreateTransaction()
@@ -173,24 +195,27 @@ let HederaService = HederaService_1 = class HederaService {
         return new Promise((resolve, reject) => {
             const messages = [];
             const topicIdObj = sdk_1.TopicId.fromString(topicId);
+            console.log(`Fetching messages for topic ${topicId}`);
             const subscription = new sdk_1.TopicMessageQuery()
                 .setTopicId(topicIdObj)
                 .setStartTime(startTime)
                 .subscribe(this.client, (error) => {
                 if (error) {
-                    this.logger.error(`Subscription error: ${error}`);
+                    console.error(`Subscription error: ${error}`);
                     subscription.unsubscribe();
                 }
             }, (message) => {
-                const buffer = Buffer.from(message.contents).toString("utf8");
-                const parsedMessage = JSON.parse(buffer);
-                messages.push({
-                    message: parsedMessage,
-                    timestamp: message.consensusTimestamp.toDate()
-                });
-                if (messages.length >= messageCount) {
-                    subscription.unsubscribe();
-                    resolve(messages);
+                try {
+                    const buffer = Buffer.from(message.contents).toString("utf8");
+                    const parsedMessage = JSON.parse(buffer);
+                    messages.push(parsedMessage);
+                    if (messages.length >= messageCount) {
+                        subscription.unsubscribe();
+                        resolve(messages);
+                    }
+                }
+                catch (parseError) {
+                    console.error(`Error parsing message: ${parseError}`);
                 }
             });
             setTimeout(() => {

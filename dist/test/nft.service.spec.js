@@ -86,7 +86,7 @@ describe('NFTService', () => {
             jest.spyOn(hederaService, 'createImmutableFile').mockResolvedValue(mockNewFileId);
             jest.spyOn(hederaService, 'createTopic').mockResolvedValue(mockEventTopic);
             jest.spyOn(hederaService, 'submitMessage').mockResolvedValue(undefined);
-            await service.writeEvent(mockNFTId, mockUpdateNFTDto);
+            await service.writeEvent(mockNFTId, { name: 'Updated NFT', description: 'A test NFT' });
             expect(service.getNFTInfo).toHaveBeenCalledWith(mockNFTId);
             expect(hederaService.createImmutableFile).toHaveBeenCalledWith(expect.objectContaining({
                 name: 'Updated NFT',

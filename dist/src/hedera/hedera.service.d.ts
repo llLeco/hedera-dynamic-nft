@@ -16,6 +16,5 @@ export declare class HederaService implements OnModuleInit, OnModuleDestroy {
     submitMessage(topicId: string, message: string): Promise<string>;
     getMessages(topicId: string, startTime: Date, messageCount: number, timeout: number): Promise<Array<{
         message: string;
-        timestamp: Date;
     }>>;
 }

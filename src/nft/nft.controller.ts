@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Put } from '@nestjs/common';
 import { NFTService } from './nft.service';
 import { CreateNFTDto } from '../dto/create-nft.dto';
-import { UpdateNFTDto } from '../dto/update-nft.dto';
+// import { UpdateNFTDto } from '../dto/update-nft.dto';
 
 @Controller('nft')
 export class NFTController {
@@ -23,7 +23,7 @@ export class NFTController {
   }
 
   @Post(':nftId/event')
-  async writeEvent(@Param('nftId') nftId: string, @Body() updateNFTDto: UpdateNFTDto) {
-    return this.nftService.writeEvent(nftId, updateNFTDto);
+  async writeEvent(@Param('nftId') nftId: string, @Body() message: {name: string, description: string}) {
+    return this.nftService.writeEvent(nftId, message);
   }
 }
