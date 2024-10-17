@@ -29,30 +29,47 @@ let CollectionService = class CollectionService {
         });
     }
     async getCollection(collectionId) {
-        const info = await this.hederaService.getCollectionInfo(collectionId);
-        return new collection_model_1.Collection({
-            id: collectionId,
-            name: info.name,
-            symbol: info.symbol,
-            description: 'Description not available',
-            createdAt: new Date()
-        });
+        try {
+            const info = await this.hederaService.getCollectionInfo(collectionId);
+            return new collection_model_1.Collection({
+                id: collectionId,
+                name: info.name,
+                symbol: info.symbol,
+                description: 'Description not available',
+                createdAt: new Date()
+            });
+        }
+        catch (error) {
+            throw new common_1.NotFoundException(`Collection with ID ${collectionId} not found`);
+        }
     }
     async getAssetsInCollection(collectionId) {
         const nfts = [];
-        for (let i = 1; i <= 100; i++) {
+        const batchSize = 20;
+        let currentBatch = 1;
+        while (true) {
+            const batchNFTs = await this.fetchNFTBatch(collectionId, currentBatch, batchSize);
+            if (batchNFTs.length === 0)
+                break;
+            nfts.push(...batchNFTs);
+            currentBatch++;
+        }
+        return nfts;
+    }
+    async fetchNFTBatch(collectionId, batch, batchSize) {
+        const batchNFTs = [];
+        for (let i = (batch - 1) * batchSize + 1; i <= batch * batchSize; i++) {
             try {
                 const nftInfo = await this.hederaService.getNFTInfo(collectionId, i.toString());
-                nfts.push(nftInfo);
+                batchNFTs.push(nftInfo);
             }
             catch (error) {
-                if (error.message === 'NFT not found') {
+                if (error.message === 'NFT not found')
                     break;
-                }
                 throw error;
             }
         }
-        return nfts;
+        return batchNFTs;
     }
 };
 exports.CollectionService = CollectionService;

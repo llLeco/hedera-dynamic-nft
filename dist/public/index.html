@@ -12,6 +12,41 @@
         button { padding: 10px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
         #result { background-color: #f1f1f1; padding: 10px; white-space: pre-wrap; }
         #nftInfo { background-color: #e0e0e0; padding: 10px; margin-top: 20px; }
+        .loader {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .alert {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .status {
+            margin-left: 10px;
+            font-style: italic;
+        }
+        .form-action {
+            display: flex;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
@@ -22,7 +57,11 @@
         <input type="text" id="collectionName" placeholder="Collection Name" required>
         <input type="text" id="collectionSymbol" placeholder="Collection Symbol" required>
         <textarea id="collectionDescription" placeholder="Collection Description" required></textarea>
-        <button type="submit">Create Collection</button>
+        <div class="form-action">
+            <button type="submit">Create Collection</button>
+            <div class="loader" id="createCollectionLoader"></div>
+            <span class="status" id="createCollectionStatus"></span>
+        </div>
     </form>
 
     <h2>Create NFT</h2>
@@ -31,13 +70,21 @@
         <input type="text" id="nftName" placeholder="NFT Name" required>
         <textarea id="nftDescription" placeholder="NFT Description" required></textarea>
         <input type="text" id="nftImage" placeholder="NFT Image URL" required>
-        <button type="submit">Create NFT</button>
+        <div class="form-action">
+            <button type="submit">Create NFT</button>
+            <div class="loader" id="createNFTLoader"></div>
+            <span class="status" id="createNFTStatus"></span>
+        </div>
     </form>
 
     <h2>Get NFT Info</h2>
     <form id="getNFTForm">
         <input type="text" id="getNftId" placeholder="NFT ID" required>
-        <button type="submit">Get NFT Info</button>
+        <div class="form-action">
+            <button type="submit">Get NFT Info</button>
+            <div class="loader" id="getNFTLoader"></div>
+            <span class="status" id="getNFTStatus"></span>
+        </div>
     </form>
 
     <h2>Write Event</h2>
@@ -45,7 +92,11 @@
         <input type="text" id="eventNftId" placeholder="NFT ID" required>
         <input type="text" id="eventName" placeholder="Event Name">
         <textarea id="eventDescription" placeholder="Event Description"></textarea>
-        <button type="submit">Write Event</button>
+        <div class="form-action">
+            <button type="submit">Write Event</button>
+            <div class="loader" id="writeEventLoader"></div>
+            <span class="status" id="writeEventStatus"></span>
+        </div>
     </form>
 
     <h2>Result</h2>
@@ -54,37 +105,112 @@
     <h2>NFT Info</h2>
     <div id="nftInfo"></div>
 
+    <div id="alertContainer"></div>
+
     <script>
         const API_URL = 'http://localhost:3000';
 
-        async function makeRequest(url, method, body = null) {
-            const options = {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-            };
-            if (body) options.body = JSON.stringify(body);
+        function showLoader(formId) {
+            const form = document.getElementById(formId);
+            if (form) {
+                const button = form.querySelector('button');
+                const loader = form.querySelector('.loader');
+                const status = form.querySelector('.status');
+                
+                if (button) button.disabled = true;
+                if (loader) loader.style.display = 'inline-block';
+                if (status) status.textContent = 'Processing...';
+            }
+        }
 
-            const response = await fetch(url, options);
-            const data = await response.json();
-            document.getElementById('result').textContent = JSON.stringify(data, null, 2);
-            
-            // Display NFT info in a more readable format
-            if (method === 'GET' && url.includes('/nft/')) {
-                displayNFTInfo(data);
+        function hideLoader(formId) {
+            const form = document.getElementById(formId);
+            if (form) {
+                const button = form.querySelector('button');
+                const loader = form.querySelector('.loader');
+                const status = form.querySelector('.status');
+                
+                if (button) button.disabled = false;
+                if (loader) loader.style.display = 'none';
+                if (status) status.textContent = '';
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            alertContainer.appendChild(alertDiv);
+            setTimeout(() => alertContainer.removeChild(alertDiv), 5000);
+        }
+
+        async function makeRequest(url, method, body = null, formId) {
+            showLoader(formId);
+            try {
+                const options = {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                };
+                if (body) options.body = JSON.stringify(body);
+
+                const response = await fetch(url, options);
+                const text = await response.text(); // Get the raw text response
+                let data;
+                try {
+                    data = JSON.parse(text); // Try to parse it as JSON
+                } catch (error) {
+                    console.error('Error parsing JSON:', error);
+                    data = { rawResponse: text }; // If parsing fails, use the raw text
+                }
+
+                const resultElement = document.getElementById('result');
+                if (resultElement) {
+                    resultElement.textContent = JSON.stringify(data, null, 2);
+                }
+                
+                if (response.ok) {
+                    showAlert('Operation successful', 'success');
+                    const statusElement = document.getElementById(`${formId}Status`);
+                    if (statusElement) {
+                        statusElement.textContent = 'Success!';
+                    }
+                    if (method === 'GET' && url.includes('/nft/')) {
+                        displayNFTInfo(data);
+                    }
+                } else {
+                    showAlert(`Error: ${data.message || 'Unknown error'}`, 'error');
+                    const statusElement = document.getElementById(`${formId}Status`);
+                    if (statusElement) {
+                        statusElement.textContent = 'Failed';
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert(`Error: ${error.message}`, 'error');
+                const statusElement = document.getElementById(`${formId}Status`);
+                if (statusElement) {
+                    statusElement.textContent = 'Failed';
+                }
+            } finally {
+                hideLoader(formId);
             }
         }
 
         function displayNFTInfo(data) {
-            const nftInfoDiv = document.getElementById('nftInfo');
-            nftInfoDiv.innerHTML = `
-                <p><strong>Token ID:</strong> ${data.tokenId}</p>
-                <p><strong>Serial Number:</strong> ${data.serialNumber}</p>
-                <p><strong>Owner:</strong> ${data.owner}</p>
-                <p><strong>Creation Time:</strong> ${data.creationTime}</p>
-                <p><strong>Topic ID:</strong> ${data.topicId}</p>
-                <h3>Metadata:</h3>
-                <pre>${JSON.stringify(data.metadata, null, 2)}</pre>
-            `;
+            const nftInfoElement = document.getElementById('nftInfo');
+            if (nftInfoElement) {
+                let content = '<h3>NFT Info</h3>';
+                if (typeof data === 'object') {
+                    for (const [key, value] of Object.entries(data)) {
+                        content += `<p><strong>${key}:</strong> ${JSON.stringify(value)}</p>`;
+                    }
+                } else {
+                    content += `<p>${data}</p>`;
+                }
+                nftInfoElement.innerHTML = content;
+            }
         }
 
         document.getElementById('createCollectionForm').addEventListener('submit', async (e) => {
@@ -94,7 +220,7 @@
                 symbol: document.getElementById('collectionSymbol').value,
                 description: document.getElementById('collectionDescription').value,
             };
-            await makeRequest(`${API_URL}/collection`, 'POST', body);
+            await makeRequest(`${API_URL}/collection`, 'POST', body, 'createCollectionForm');
         });
 
         document.getElementById('createNFTForm').addEventListener('submit', async (e) => {
@@ -106,13 +232,13 @@
                 image: document.getElementById('nftImage').value,
                 attributes: [],
             };
-            await makeRequest(`${API_URL}/nft/${collectionId}`, 'POST', body);
+            await makeRequest(`${API_URL}/nft/${collectionId}`, 'POST', body, 'createNFTForm');
         });
 
         document.getElementById('getNFTForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const nftId = document.getElementById('getNftId').value;
-            await makeRequest(`${API_URL}/nft/${nftId}`, 'GET');
+            await makeRequest(`${API_URL}/nft/${nftId}`, 'GET', null, 'getNFTForm');
         });
 
         document.getElementById('writeEventForm').addEventListener('submit', async (e) => {
@@ -122,7 +248,7 @@
                 name: document.getElementById('eventName').value,
                 description: document.getElementById('eventDescription').value,
             };
-            await makeRequest(`${API_URL}/nft/${nftId}/event`, 'POST', body);
+            await makeRequest(`${API_URL}/nft/${nftId}/event`, 'POST', body, 'writeEventForm');
         });
     </script>
 </body>

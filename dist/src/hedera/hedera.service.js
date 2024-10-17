@@ -1,32 +1,9 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
 var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
 };
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
@@ -36,12 +13,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.HederaService = void 0;
 const common_1 = require("@nestjs/common");
 const sdk_1 = require("@hashgraph/sdk");
-const dotenv = __importStar(require("dotenv"));
-const path = __importStar(require("path"));
+const config_1 = require("@nestjs/config");
 let HederaService = HederaService_1 = class HederaService {
-    constructor() {
+    constructor(configService) {
+        this.configService = configService;
         this.logger = new common_1.Logger(HederaService_1.name);
-        dotenv.config({ path: path.resolve(__dirname, '../../.env') });
     }
     async onModuleInit() {
         await this.initializeClient();
@@ -52,8 +28,8 @@ let HederaService = HederaService_1 = class HederaService {
         }
     }
     async initializeClient() {
-        const operatorId = process.env.HEDERA_ACCOUNT_ID;
-        const operatorKey = process.env.HEDERA_PRIVATE_KEY;
+        const operatorId = this.configService.get('HEDERA_ACCOUNT_ID');
+        const operatorKey = this.configService.get('HEDERA_PRIVATE_KEY');
         if (!operatorId || !operatorKey) {
             throw new Error('Environment variables HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY must be present');
         }
@@ -63,7 +39,7 @@ let HederaService = HederaService_1 = class HederaService {
             this.client.setOperator(accountId, operatorKey);
         }
         catch (error) {
-            console.error('Error initializing Hedera client:', error);
+            this.logger.error('Error initializing Hedera client:', error);
             throw error;
         }
     }
@@ -137,39 +113,33 @@ let HederaService = HederaService_1 = class HederaService {
         if (nftInfo.length === 0) {
             throw new Error('NFT not found');
         }
-        let metadata = nftInfo[0].metadata;
+        const metadata = nftInfo[0].metadata.toString().trim();
         let parsedMetadata;
-        let topicId;
         let messages;
-        const metadataString = metadata.toString().trim();
-        if (metadataString.match(/^0\.0\.\d+$/)) {
-            const fileId = metadataString;
-            parsedMetadata = await this.getFileContents(fileId);
+        if (metadata.match(/^0\.0\.\d+$/)) {
+            parsedMetadata = await this.getFileContents(metadata);
             messages = await this.getMessages(parsedMetadata.topicId, new Date(0), 100, 10000);
         }
         else {
-            try {
-                parsedMetadata = JSON.parse(metadataString);
-            }
-            catch (error) {
-                console.error('Error parsing metadata as JSON:', error);
-                parsedMetadata = metadataString;
-            }
+            parsedMetadata = this.tryParseJSON(metadata) || { rawMetadata: metadata };
         }
-        const result = {
+        return {
             tokenId: nftInfo[0].nftId.tokenId.toString(),
             serialNumber: nftInfo[0].nftId.serial.toString(),
             owner: nftInfo[0].accountId.toString(),
             metadata: parsedMetadata,
-            messages: messages,
-            rawMetadata: metadataString,
+            messages,
             creationTime: nftInfo[0].creationTime.toDate(),
         };
-        if (topicId) {
-            result['topicId'] = topicId;
-            result['messages'] = messages;
+    }
+    tryParseJSON(str) {
+        try {
+            return JSON.parse(str);
         }
-        return result;
+        catch (error) {
+            this.logger.warn('Error parsing metadata as JSON:', error);
+            return null;
+        }
     }
     async createTopic(memo) {
         const transaction = new sdk_1.TopicCreateTransaction()
@@ -195,31 +165,52 @@ let HederaService = HederaService_1 = class HederaService {
         return new Promise((resolve, reject) => {
             const messages = [];
             const topicIdObj = sdk_1.TopicId.fromString(topicId);
-            console.log(`Fetching messages for topic ${topicId}`);
-            const subscription = new sdk_1.TopicMessageQuery()
-                .setTopicId(topicIdObj)
-                .setStartTime(startTime)
-                .subscribe(this.client, (error) => {
-                if (error) {
-                    console.error(`Subscription error: ${error}`);
-                    subscription.unsubscribe();
-                }
-            }, (message) => {
+            this.logger.log(`Fetching messages for topic ${topicId}`);
+            const attemptSubscription = (attempt = 0) => {
+                let subscription;
                 try {
-                    const buffer = Buffer.from(message.contents).toString("utf8");
-                    const parsedMessage = JSON.parse(buffer);
-                    messages.push(parsedMessage);
-                    if (messages.length >= messageCount) {
-                        subscription.unsubscribe();
-                        resolve(messages);
+                    subscription = new sdk_1.TopicMessageQuery()
+                        .setTopicId(topicIdObj)
+                        .setStartTime(startTime)
+                        .subscribe(this.client, (error) => {
+                        if (error) {
+                            this.logger.error(`Subscription error (attempt ${attempt}): ${error}`);
+                            if (subscription)
+                                subscription.unsubscribe();
+                            if (attempt < 3) {
+                                setTimeout(() => attemptSubscription(attempt + 1), 1000 * (attempt + 1));
+                            }
+                            else {
+                                reject(new Error(`Failed to subscribe after ${attempt} attempts: ${error}`));
+                            }
+                        }
+                    }, (message) => {
+                        try {
+                            const parsedMessage = JSON.parse(Buffer.from(message.contents).toString("utf8"));
+                            messages.push(parsedMessage);
+                            if (messages.length >= messageCount) {
+                                if (subscription)
+                                    subscription.unsubscribe();
+                                resolve(messages);
+                            }
+                        }
+                        catch (parseError) {
+                            this.logger.error(`Error parsing message: ${parseError}`);
+                        }
+                    });
+                }
+                catch (setupError) {
+                    this.logger.error(`Error setting up subscription (attempt ${attempt}): ${setupError}`);
+                    if (attempt < 3) {
+                        setTimeout(() => attemptSubscription(attempt + 1), 1000 * (attempt + 1));
+                    }
+                    else {
+                        reject(new Error(`Failed to set up subscription after ${attempt} attempts: ${setupError}`));
                     }
                 }
-                catch (parseError) {
-                    console.error(`Error parsing message: ${parseError}`);
-                }
-            });
+            };
+            attemptSubscription();
             setTimeout(() => {
-                subscription.unsubscribe();
                 resolve(messages);
             }, timeout);
         });
@@ -228,6 +219,6 @@ let HederaService = HederaService_1 = class HederaService {
 exports.HederaService = HederaService;
 exports.HederaService = HederaService = HederaService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [])
+    __metadata("design:paramtypes", [config_1.ConfigService])
 ], HederaService);
 //# sourceMappingURL=hedera.service.js.map

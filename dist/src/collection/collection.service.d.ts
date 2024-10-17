@@ -7,4 +7,5 @@ export declare class CollectionService {
     createCollection(createCollectionDto: CreateCollectionDto): Promise<Collection>;
     getCollection(collectionId: string): Promise<Collection>;
     getAssetsInCollection(collectionId: string): Promise<any[]>;
+    private fetchNFTBatch;
 }
