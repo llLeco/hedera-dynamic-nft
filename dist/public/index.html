@@ -52,6 +52,16 @@
 <body>
     <h1>Hedera Dynamic NFT Tester</h1>
 
+    <h2>Upload Image to IPFS</h2>
+    <form id="uploadImageForm">
+        <input type="file" id="imageFile" accept="image/*" required>
+        <div class="form-action">
+            <button type="submit">Upload Image</button>
+            <div class="loader" id="uploadImageLoader"></div>
+            <span class="status" id="uploadImageStatus"></span>
+        </div>
+    </form>
+
     <h2>Create Collection</h2>
     <form id="createCollectionForm">
         <input type="text" id="collectionName" placeholder="Collection Name" required>
@@ -69,7 +79,7 @@
         <input type="text" id="collectionId" placeholder="Collection ID" required>
         <input type="text" id="nftName" placeholder="NFT Name" required>
         <textarea id="nftDescription" placeholder="NFT Description" required></textarea>
-        <input type="text" id="nftImage" placeholder="NFT Image URL" required>
+        <input type="text" id="nftImage" placeholder="IPFS CID" required>
         <div class="form-action">
             <button type="submit">Create NFT</button>
             <div class="loader" id="createNFTLoader"></div>
@@ -249,6 +259,46 @@
                 description: document.getElementById('eventDescription').value,
             };
             await makeRequest(`${API_URL}/nft/${nftId}/event`, 'POST', body, 'writeEventForm');
+        });
+
+        document.getElementById('uploadImageForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('imageFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showAlert('Please select an image file', 'error');
+                return;
+            }
+
+            showLoader('uploadImageForm');
+            
+            try {
+                const formData = new FormData();
+                formData.append('image', file);
+
+                const response = await fetch(`${API_URL}/ipfs/upload`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showAlert('Image uploaded successfully', 'success');
+                    document.getElementById('uploadImageStatus').textContent = 'Success!';
+                    // Automatically fill the NFT image field with the IPFS CID
+                    document.getElementById('nftImage').value = data.cid;
+                } else {
+                    throw new Error(data.message || 'Failed to upload image');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert(`Error: ${error.message}`, 'error');
+                document.getElementById('uploadImageStatus').textContent = 'Failed';
+            } finally {
+                hideLoader('uploadImageForm');
+            }
         });
     </script>
 </body>

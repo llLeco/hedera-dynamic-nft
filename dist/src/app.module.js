@@ -12,6 +12,7 @@ const config_1 = require("@nestjs/config");
 const nft_module_1 = require("./nft/nft.module");
 const collection_module_1 = require("./collection/collection.module");
 const static_controller_1 = require("./static.controller");
+const ipfs_module_1 = require("./ipfs/ipfs.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -23,6 +24,7 @@ exports.AppModule = AppModule = __decorate([
             }),
             nft_module_1.NFTModule,
             collection_module_1.CollectionModule,
+            ipfs_module_1.IpfsModule,
         ],
         controllers: [static_controller_1.StaticController],
         providers: [],
