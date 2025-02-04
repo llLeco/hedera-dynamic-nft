@@ -112,9 +112,6 @@
     <h2>Result</h2>
     <pre id="result"></pre>
 
-    <h2>NFT Info</h2>
-    <div id="nftInfo"></div>
-
     <div id="alertContainer"></div>
 
     <script>
@@ -185,9 +182,6 @@
                     if (statusElement) {
                         statusElement.textContent = 'Success!';
                     }
-                    if (method === 'GET' && url.includes('/nft/')) {
-                        displayNFTInfo(data);
-                    }
                 } else {
                     showAlert(`Error: ${data.message || 'Unknown error'}`, 'error');
                     const statusElement = document.getElementById(`${formId}Status`);
@@ -208,21 +202,6 @@
             }
         }
 
-        function displayNFTInfo(data) {
-            const nftInfoElement = document.getElementById('nftInfo');
-            if (nftInfoElement) {
-                let content = '<h3>NFT Info</h3>';
-                if (typeof data === 'object') {
-                    for (const [key, value] of Object.entries(data)) {
-                        content += `<p><strong>${key}:</strong> ${JSON.stringify(value)}</p>`;
-                    }
-                } else {
-                    content += `<p>${data}</p>`;
-                }
-                nftInfoElement.innerHTML = content;
-            }
-        }
-
         document.getElementById('createCollectionForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const body = {
@@ -236,10 +215,11 @@
         document.getElementById('createNFTForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const collectionId = document.getElementById('collectionId').value;
+            const imageCid = document.getElementById('nftImage').value;
             const body = {
                 name: document.getElementById('nftName').value,
                 description: document.getElementById('nftDescription').value,
-                image: document.getElementById('nftImage').value,
+                image: imageCid.startsWith('ipfs://') ? imageCid : `ipfs://${imageCid}`,
                 attributes: [],
             };
             await makeRequest(`${API_URL}/nft/${collectionId}`, 'POST', body, 'createNFTForm');
