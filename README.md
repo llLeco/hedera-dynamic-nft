@@ -23,7 +23,7 @@ Unlike regular NFTs, Dynamic NFTs (dNFTs) can change their metadata or propertie
 
 The application follows a clean, modular architecture based on NestJS:
 
-![Architecture](docs/architecture-diagram.svg)
+<img src="docs/architecture-diagram.svg" alt="Architecture Diagram" width="800" />
 
 ### Key Components
 
