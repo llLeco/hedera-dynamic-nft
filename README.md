@@ -21,9 +21,13 @@ Unlike regular NFTs, Dynamic NFTs (dNFTs) can change their metadata or propertie
 
 ## Architecture
 
-The application follows a clean, modular architecture based on NestJS:
+The application follows a clean, modular architecture based on NestJS with four main layers:
 
-<img src="docs/architecture-diagram.svg" alt="Architecture Diagram" width="800" />
+1. **Client Layer**: Handles web browser, mobile app, and external service requests
+2. **API Layer**: Manages REST endpoints, validation, and error handling
+3. **Core Layer**: Contains NFT, Collection, and IPFS modules for business logic
+4. **Service Layer**: Provides Hedera, Config, and IPFS services for external integrations
+5. **External Layer**: Connects to Hedera Network, HCS Topics, and IPFS/Pinata
 
 ### Key Components
 
