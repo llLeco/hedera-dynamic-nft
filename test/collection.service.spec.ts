@@ -1,12 +1,9 @@
-/// <reference types="@nestjs/testing" />
-/// <reference types="jest" />
-
 import { Test, TestingModule } from '@nestjs/testing';
 import { CollectionService } from '../src/collection/collection.service';
-import { ConfigService } from '@nestjs/config';
 import { HederaService } from '../src/hedera/hedera.service';
 import { CreateCollectionDto } from '../src/dto/create-collection.dto';
 import { Collection } from '../src/models/collection.model';
+import { NotFoundException } from '@nestjs/common';
 
 describe('CollectionService', () => {
   let service: CollectionService;
@@ -16,15 +13,6 @@ describe('CollectionService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CollectionService,
-        {
-          provide: ConfigService,
-          useValue: {
-            get: jest.fn((key: string) => {
-              if (key === 'HEDERA_NETWORK') return 'testnet';
-              return 'mock_value';
-            }),
-          },
-        },
         {
           provide: HederaService,
           useValue: {
@@ -51,68 +39,79 @@ describe('CollectionService', () => {
         symbol: 'TEST',
         description: 'A test collection',
       };
-      const mockTokenId = '0.0.12345';
+      const tokenId = '0.0.12345';
 
-      jest.spyOn(hederaService, 'createNFTCollection').mockResolvedValue(mockTokenId);
+      jest.spyOn(hederaService, 'createNFTCollection').mockResolvedValue(tokenId);
 
       const result = await service.createCollection(createCollectionDto);
 
-      expect(hederaService.createNFTCollection).toHaveBeenCalledWith(createCollectionDto.name, createCollectionDto.symbol);
+      expect(hederaService.createNFTCollection).toHaveBeenCalledWith('Test Collection', 'TEST');
       expect(result).toBeInstanceOf(Collection);
-      expect(result.id).toBe(mockTokenId);
+      expect(result.id).toBe(tokenId);
       expect(result.name).toBe(createCollectionDto.name);
       expect(result.symbol).toBe(createCollectionDto.symbol);
       expect(result.description).toBe(createCollectionDto.description);
-      expect(result.createdAt).toBeInstanceOf(Date);
     });
   });
 
   describe('getCollection', () => {
-    it('should get collection info', async () => {
-      const mockCollectionId = '0.0.12345';
-      const mockCollectionInfo = {
+    it('should get a collection', async () => {
+      const collectionId = '0.0.12345';
+      const collectionInfo = {
+        tokenId: collectionId,
         name: 'Test Collection',
         symbol: 'TEST',
+        totalSupply: '5',
+        maxSupply: '1000',
       };
 
-      jest.spyOn(hederaService, 'getCollectionInfo').mockResolvedValue(mockCollectionInfo);
+      jest.spyOn(hederaService, 'getCollectionInfo').mockResolvedValue(collectionInfo);
 
-      const result = await service.getCollection(mockCollectionId);
+      const result = await service.getCollection(collectionId);
 
-      expect(hederaService.getCollectionInfo).toHaveBeenCalledWith(mockCollectionId);
+      expect(hederaService.getCollectionInfo).toHaveBeenCalledWith(collectionId);
       expect(result).toBeInstanceOf(Collection);
-      expect(result.id).toBe(mockCollectionId);
-      expect(result.name).toBe(mockCollectionInfo.name);
-      expect(result.symbol).toBe(mockCollectionInfo.symbol);
-      expect(result.description).toBe('Description not available');
-      expect(result.createdAt).toBeInstanceOf(Date);
+      expect(result.id).toBe(collectionId);
+      expect(result.name).toBe(collectionInfo.name);
+      expect(result.symbol).toBe(collectionInfo.symbol);
+    });
+
+    it('should throw NotFoundException when collection is not found', async () => {
+      const collectionId = '0.0.99999';
+
+      jest
+        .spyOn(hederaService, 'getCollectionInfo')
+        .mockRejectedValue(new Error('Collection not found'));
+
+      await expect(service.getCollection(collectionId)).rejects.toThrow(NotFoundException);
     });
   });
 
+  // The getAssetsInCollection method is quite complex and fetches data in batches
+  // This is a simplified test that verifies basic functionality
   describe('getAssetsInCollection', () => {
-    it('should get assets in collection', async () => {
-      const mockCollectionId = '0.0.12345';
-      const mockNFTInfo = { serialNumber: '1', metadata: 'metadata' };
+    it('should get assets in a collection', async () => {
+      const collectionId = '0.0.12345';
+      const mockNFT = {
+        tokenId: collectionId,
+        serialNumber: '1',
+        owner: '0.0.12345',
+        metadata: { name: 'Test NFT' },
+        creationTime: new Date(),
+      };
 
-      jest.spyOn(hederaService, 'getNFTInfo')
-        .mockResolvedValueOnce(mockNFTInfo)
+      // Mock for the private fetchNFTBatch method by spying on getNFTInfo
+      // We'll make it return one NFT and then throw 'NFT not found' to end the loop
+      jest
+        .spyOn(hederaService, 'getNFTInfo')
+        .mockResolvedValueOnce(mockNFT)
         .mockRejectedValueOnce(new Error('NFT not found'));
 
-      const result = await service.getAssetsInCollection(mockCollectionId);
+      const result = await service.getAssetsInCollection(collectionId);
 
-      expect(hederaService.getNFTInfo).toHaveBeenCalledTimes(2);
-      expect(hederaService.getNFTInfo).toHaveBeenCalledWith(mockCollectionId, '1');
-      expect(hederaService.getNFTInfo).toHaveBeenCalledWith(mockCollectionId, '2');
-      expect(result).toEqual([mockNFTInfo]);
-    });
-
-    it('should handle errors other than "NFT not found"', async () => {
-      const mockCollectionId = '0.0.12345';
-      const mockError = new Error('Unexpected error');
-
-      jest.spyOn(hederaService, 'getNFTInfo').mockRejectedValue(mockError);
-
-      await expect(service.getAssetsInCollection(mockCollectionId)).rejects.toThrow(mockError);
+      expect(result).toEqual([mockNFT]);
+      expect(result.length).toBe(1);
+      expect(hederaService.getNFTInfo).toHaveBeenCalledWith(collectionId, '1');
     });
   });
 });

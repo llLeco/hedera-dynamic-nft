@@ -30,7 +30,7 @@ export class NFTService {
       const metadataWithTopic = { ...metadata, topicId };
       const fileId = await this.hederaService.createImmutableFile(metadataWithTopic);
       const serialNumber = await this.hederaService.mintNFT(collectionId, fileId);
-      
+
       const nftId = `${collectionId}:${serialNumber}`;
       this.logger.log(`NFT created successfully: ${nftId}`);
       return nftId;
@@ -48,11 +48,11 @@ export class NFTService {
    */
   async getNFTInfo(nftId: string): Promise<any> {
     const [collectionId, serialNumber] = this.parseNftId(nftId);
-    
+
     try {
       const nftInfo = await this.hederaService.getNFTInfo(collectionId, serialNumber);
       this.logger.log(`Retrieved info for NFT: ${nftId}`);
-      
+
       // If metadata is a string, try to parse it as JSON
       if (typeof nftInfo.metadata === 'string') {
         try {
@@ -61,7 +61,7 @@ export class NFTService {
           this.logger.warn(`Failed to parse metadata as JSON for NFT ${nftId}`);
         }
       }
-      
+
       return nftInfo;
     } catch (error) {
       this.logger.error(`Error retrieving NFT info: ${error.message}`, error.stack);
@@ -75,7 +75,7 @@ export class NFTService {
    * @param message The event message to write.
    * @throws NotFoundException if the NFT ID format is invalid.
    */
-  async writeEvent(nftId: string, message: {name: string, description: string}): Promise<void> {
+  async writeEvent(nftId: string, message: { name: string; description: string }): Promise<void> {
     const [collectionId, serialNumber] = this.parseNftId(nftId);
 
     this.logger.log(`Writing event to NFT: ${nftId}`);
@@ -88,7 +88,10 @@ export class NFTService {
         timestamp: new Date().toISOString(),
       };
 
-      await this.hederaService.submitMessage(currentInfo.metadata.topicId, JSON.stringify(messageWithTimestamp));
+      await this.hederaService.submitMessage(
+        currentInfo.metadata.topicId,
+        JSON.stringify(messageWithTimestamp),
+      );
       this.logger.log(`Event written successfully to NFT: ${nftId}`);
     } catch (error) {
       this.logger.error(`Error writing event to NFT: ${error.message}`, error.stack);
@@ -110,10 +113,15 @@ export class NFTService {
     try {
       const currentInfo = await this.getNFTInfo(nftId);
       const startTime = new Date(0); // Start from the beginning of time
-      const messages = await this.hederaService.getMessages(currentInfo.metadata.topicId, startTime, 100, 10000);
+      const messages = await this.hederaService.getMessages(
+        currentInfo.metadata.topicId,
+        startTime,
+        100,
+        10000,
+      );
 
       this.logger.log(`Retrieved ${messages.length} historical events for NFT: ${nftId}`);
-      return messages.map(msg => msg.message);
+      return messages.map((msg) => msg.message);
     } catch (error) {
       this.logger.error(`Error retrieving NFT history: ${error.message}`, error.stack);
       throw error;

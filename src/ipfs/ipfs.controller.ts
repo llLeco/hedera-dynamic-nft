@@ -17,4 +17,4 @@ export class IpfsController {
   async getImage(@Param('cid') cid: string) {
     return await this.ipfsService.getImage(cid);
   }
-} 
+}

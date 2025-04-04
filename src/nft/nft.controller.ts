@@ -22,7 +22,10 @@ export class NFTController {
   }
 
   @Post(':nftId/event')
-  async writeEvent(@Param('nftId') nftId: string, @Body() message: {name: string, description: string}) {
+  async writeEvent(
+    @Param('nftId') nftId: string,
+    @Body() message: { name: string; description: string },
+  ) {
     return this.nftService.writeEvent(nftId, message);
   }
 }

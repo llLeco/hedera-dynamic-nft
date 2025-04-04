@@ -1,5 +1,24 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { Client, AccountId, PrivateKey, TokenCreateTransaction, TokenType, TokenSupplyType, TokenMintTransaction, TokenInfoQuery, TokenNftInfoQuery, NftId, TokenId, FileCreateTransaction, FileContentsQuery, TopicCreateTransaction, TopicMessageSubmitTransaction, TopicMessageQuery, Hbar, TopicId } from "@hashgraph/sdk";
+import {
+  Client,
+  AccountId,
+  PrivateKey,
+  TokenCreateTransaction,
+  TokenType,
+  TokenSupplyType,
+  TokenMintTransaction,
+  TokenInfoQuery,
+  TokenNftInfoQuery,
+  NftId,
+  TokenId,
+  FileCreateTransaction,
+  FileContentsQuery,
+  TopicCreateTransaction,
+  TopicMessageSubmitTransaction,
+  TopicMessageQuery,
+  Hbar,
+  TopicId,
+} from '@hashgraph/sdk';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
@@ -34,7 +53,9 @@ export class HederaService implements OnModuleInit, OnModuleDestroy {
     const operatorKey = this.configService.get<string>('HEDERA_PRIVATE_KEY');
 
     if (!operatorId || !operatorKey) {
-      throw new Error('Environment variables HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY must be present');
+      throw new Error(
+        'Environment variables HEDERA_ACCOUNT_ID and HEDERA_PRIVATE_KEY must be present',
+      );
     }
 
     try {
@@ -98,7 +119,9 @@ export class HederaService implements OnModuleInit, OnModuleDestroy {
     const mintRx = await mintTxSubmit.getReceipt(this.client);
 
     const serialNumber = mintRx.serials[0].low.toString();
-    this.logger.log(`Minted NFT ${collectionId} with serial: ${serialNumber}, referencing file: ${fileId}`);
+    this.logger.log(
+      `Minted NFT ${collectionId} with serial: ${serialNumber}, referencing file: ${fileId}`,
+    );
 
     return serialNumber;
   }
@@ -128,8 +151,7 @@ export class HederaService implements OnModuleInit, OnModuleDestroy {
    * @returns A promise that resolves to the parsed contents of the file.
    */
   async getFileContents(fileId: string): Promise<any> {
-    const query = new FileContentsQuery()
-      .setFileId(fileId);
+    const query = new FileContentsQuery().setFileId(fileId);
 
     const contents = await query.execute(this.client);
     return JSON.parse(contents.toString());
@@ -161,9 +183,7 @@ export class HederaService implements OnModuleInit, OnModuleDestroy {
    */
   async getNFTInfo(tokenId: string, serialNumber: string): Promise<any> {
     const nftId = new NftId(TokenId.fromString(tokenId), serialNumber);
-    const nftInfo = await new TokenNftInfoQuery()
-      .setNftId(nftId)
-      .execute(this.client);
+    const nftInfo = await new TokenNftInfoQuery().setNftId(nftId).execute(this.client);
 
     if (nftInfo.length === 0) {
       throw new Error('NFT not found');
@@ -248,7 +268,12 @@ export class HederaService implements OnModuleInit, OnModuleDestroy {
    * @param timeout The timeout duration for the retrieval operation.
    * @returns A promise that resolves to an array of retrieved messages.
    */
-  async getMessages(topicId: string, startTime: Date, messageCount: number, timeout: number): Promise<Array<{ message: string }>> {
+  async getMessages(
+    topicId: string,
+    startTime: Date,
+    messageCount: number,
+    timeout: number,
+  ): Promise<Array<{ message: string }>> {
     return new Promise<Array<{ message: string }>>((resolve, reject) => {
       const messages = [];
       const topicIdObj = TopicId.fromString(topicId);
@@ -275,7 +300,7 @@ export class HederaService implements OnModuleInit, OnModuleDestroy {
               },
               (message) => {
                 try {
-                  const parsedMessage = JSON.parse(Buffer.from(message.contents).toString("utf8"));
+                  const parsedMessage = JSON.parse(Buffer.from(message.contents).toString('utf8'));
                   messages.push(parsedMessage);
                   if (messages.length >= messageCount) {
                     if (subscription) subscription.unsubscribe();
@@ -284,14 +309,16 @@ export class HederaService implements OnModuleInit, OnModuleDestroy {
                 } catch (parseError) {
                   this.logger.error(`Error parsing message: ${parseError}`);
                 }
-              }
+              },
             );
         } catch (setupError) {
           this.logger.error(`Error setting up subscription (attempt ${attempt}): ${setupError}`);
           if (attempt < 3) {
             setTimeout(() => attemptSubscription(attempt + 1), 1000 * (attempt + 1));
           } else {
-            reject(new Error(`Failed to set up subscription after ${attempt} attempts: ${setupError}`));
+            reject(
+              new Error(`Failed to set up subscription after ${attempt} attempts: ${setupError}`),
+            );
           }
         }
       };

@@ -7,4 +7,4 @@ import { IpfsController } from './ipfs.controller';
   controllers: [IpfsController],
   exports: [IpfsService],
 })
-export class IpfsModule {} 
+export class IpfsModule {}

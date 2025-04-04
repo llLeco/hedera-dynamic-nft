@@ -1,0 +1,150 @@
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .box {
+      stroke: #333;
+      stroke-width: 2;
+      rx: 5;
+      ry: 5;
+    }
+    .heading {
+      font-family: Arial, sans-serif;
+      font-weight: bold;
+      font-size: 14px;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+    .text {
+      font-family: Arial, sans-serif;
+      font-size: 12px;
+      text-anchor: middle;
+      dominant-baseline: central;
+    }
+    .arrow {
+      stroke: #666;
+      stroke-width: 2;
+      fill: none;
+      marker-end: url(#arrowhead);
+    }
+    .client {
+      fill: #e1f5fe;
+    }
+    .api {
+      fill: #dcedc8;
+    }
+    .core {
+      fill: #fff9c4;
+    }
+    .db {
+      fill: #f8bbd0;
+    }
+    .service {
+      fill: #d1c4e9;
+    }
+    .external {
+      fill: #ffccbc;
+    }
+  </style>
+  
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+    </marker>
+  </defs>
+  
+  <rect width="800" height="600" fill="#ffffff"/>
+  
+  <!-- Title -->
+  <text x="400" y="30" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle">Hedera Dynamic NFT Architecture</text>
+  
+  <!-- Client Layer -->
+  <rect x="80" y="80" width="640" height="80" class="box client"/>
+  <text x="400" y="100" class="heading">CLIENT LAYER</text>
+  
+  <rect x="110" y="120" width="120" height="30" rx="5" ry="5" stroke="#333" stroke-width="1" fill="#fff"/>
+  <text x="170" y="135" class="text">Web Browser</text>
+  
+  <rect x="340" y="120" width="120" height="30" rx="5" ry="5" stroke="#333" stroke-width="1" fill="#fff"/>
+  <text x="400" y="135" class="text">Mobile App</text>
+  
+  <rect x="570" y="120" width="120" height="30" rx="5" ry="5" stroke="#333" stroke-width="1" fill="#fff"/>
+  <text x="630" y="135" class="text">External Services</text>
+  
+  <!-- API Layer -->
+  <rect x="80" y="190" width="640" height="80" class="box api"/>
+  <text x="400" y="210" class="heading">API LAYER</text>
+  
+  <rect x="140" y="230" width="120" height="30" rx="5" ry="5" stroke="#333" stroke-width="1" fill="#fff"/>
+  <text x="200" y="245" class="text">REST API</text>
+  
+  <rect x="340" y="230" width="120" height="30" rx="5" ry="5" stroke="#333" stroke-width="1" fill="#fff"/>
+  <text x="400" y="245" class="text">Validation</text>
+  
+  <rect x="540" y="230" width="120" height="30" rx="5" ry="5" stroke="#333" stroke-width="1" fill="#fff"/>
+  <text x="600" y="245" class="text">Error Handling</text>
+  
+  <!-- Core Layer -->
+  <rect x="80" y="300" width="640" height="130" class="box core"/>
+  <text x="400" y="320" class="heading">CORE LAYER</text>
+  
+  <rect x="110" y="350" width="140" height="60" rx="5" ry="5" stroke="#333" stroke-width="1" fill="#fff"/>
+  <text x="180" y="365" class="text">NFT Module</text>
+  <text x="180" y="385" font-family="Arial, sans-serif" font-size="10" text-anchor="middle">NFT Create, Update, Query</text>
+  
+  <rect x="330" y="350" width="140" height="60" rx="5" ry="5" stroke="#333" stroke-width="1" fill="#fff"/>
+  <text x="400" y="365" class="text">Collection Module</text>
+  <text x="400" y="385" font-family="Arial, sans-serif" font-size="10" text-anchor="middle">Collection Management</text>
+  
+  <rect x="550" y="350" width="140" height="60" rx="5" ry="5" stroke="#333" stroke-width="1" fill="#fff"/>
+  <text x="620" y="365" class="text">IPFS Module</text>
+  <text x="620" y="385" font-family="Arial, sans-serif" font-size="10" text-anchor="middle">File Storage & Retrieval</text>
+  
+  <!-- Service Layer -->
+  <rect x="80" y="460" width="640" height="60" class="box service"/>
+  <text x="400" y="480" class="heading">SERVICE LAYER</text>
+  
+  <rect x="140" y="475" width="120" height="30" rx="5" ry="5" stroke="#333" stroke-width="1" fill="#fff"/>
+  <text x="200" y="490" class="text">Hedera Service</text>
+  
+  <rect x="340" y="475" width="120" height="30" rx="5" ry="5" stroke="#333" stroke-width="1" fill="#fff"/>
+  <text x="400" y="490" class="text">Config Service</text>
+  
+  <rect x="540" y="475" width="120" height="30" rx="5" ry="5" stroke="#333" stroke-width="1" fill="#fff"/>
+  <text x="600" y="490" class="text">IPFS Service</text>
+  
+  <!-- External Layer -->
+  <rect x="80" y="550" width="640" height="30" class="box external"/>
+  
+  <rect x="140" y="550" width="120" height="30" rx="5" ry="5" stroke="#333" stroke-width="1" fill="#ffccbc"/>
+  <text x="200" y="565" class="text">Hedera Network</text>
+  
+  <rect x="340" y="550" width="120" height="30" rx="5" ry="5" stroke="#333" stroke-width="1" fill="#ffccbc"/>
+  <text x="400" y="565" class="text">HCS Topics</text>
+  
+  <rect x="540" y="550" width="120" height="30" rx="5" ry="5" stroke="#333" stroke-width="1" fill="#ffccbc"/>
+  <text x="600" y="565" class="text">IPFS/Pinata</text>
+  
+  <!-- Arrows -->
+  <!-- Client to API -->
+  <path d="M170 160 L170 190" class="arrow"/>
+  <path d="M400 160 L400 190" class="arrow"/>
+  <path d="M630 160 L630 190" class="arrow"/>
+  
+  <!-- API to Core -->
+  <path d="M200 270 L200 350" class="arrow"/>
+  <path d="M400 270 L400 350" class="arrow"/>
+  <path d="M600 270 L600 350" class="arrow"/>
+  
+  <!-- Core to Service -->
+  <path d="M180 410 L180 475" class="arrow"/>
+  <path d="M400 410 L400 475" class="arrow"/>
+  <path d="M620 410 L620 475" class="arrow"/>
+  
+  <!-- Service to External -->
+  <path d="M200 505 L200 550" class="arrow"/>
+  <path d="M400 505 L400 550" class="arrow"/>
+  <path d="M600 505 L600 550" class="arrow"/>
+  
+  <!-- Inter-module arrows -->
+  <path d="M250 380 L330 380" class="arrow"/>
+  <path d="M470 380 L550 380" class="arrow"/>
+</svg> 

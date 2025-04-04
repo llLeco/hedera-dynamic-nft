@@ -9,30 +9,30 @@ export class CollectionService {
 
   /**
    * Creates a new NFT collection on the Hedera network.
-   * 
+   *
    * @param createCollectionDto - The DTO containing the collection details (name, symbol, description).
    * @returns A Promise that resolves to a new Collection object.
    * @throws {Error} If there's an issue creating the collection on the Hedera network.
    */
   async createCollection(createCollectionDto: CreateCollectionDto): Promise<Collection> {
     const { name, symbol, description } = createCollectionDto;
-    
+
     // Create the NFT collection on Hedera and get the token ID
     const tokenId = await this.hederaService.createNFTCollection(name, symbol);
-    
+
     // Create and return a new Collection object with the provided details and token ID
     return new Collection({
       id: tokenId,
       name,
       symbol,
       description,
-      createdAt: new Date()
+      createdAt: new Date(),
     });
   }
 
   /**
    * Retrieves information about a specific NFT collection from the Hedera network.
-   * 
+   *
    * @param collectionId - The unique identifier of the collection to retrieve.
    * @returns A Promise that resolves to a Collection object containing the collection details.
    * @throws {NotFoundException} If the collection with the given ID is not found on the Hedera network.
@@ -41,14 +41,14 @@ export class CollectionService {
     try {
       // Fetch the collection information from Hedera
       const info = await this.hederaService.getCollectionInfo(collectionId);
-      
+
       // Create and return a Collection object with the retrieved information
       return new Collection({
         id: collectionId,
         name: info.name,
         symbol: info.symbol,
         description: 'Description not available', // Hedera doesn't provide description in TokenInfo
-        createdAt: new Date() // Using current date as Hedera doesn't provide creation date
+        createdAt: new Date(), // Using current date as Hedera doesn't provide creation date
       });
     } catch (error) {
       // If the collection is not found, throw a NotFoundException
@@ -59,7 +59,7 @@ export class CollectionService {
   /**
    * Retrieves all NFT assets within a specific collection from the Hedera network.
    * This method uses batch processing to efficiently fetch large collections.
-   * 
+   *
    * @param collectionId - The unique identifier of the collection to retrieve assets from.
    * @returns A Promise that resolves to an array of NFT information objects.
    */
@@ -71,13 +71,13 @@ export class CollectionService {
     while (true) {
       // Fetch a batch of NFTs
       const batchNFTs = await this.fetchNFTBatch(collectionId, currentBatch, batchSize);
-      
+
       // If the batch is empty, we've fetched all NFTs
       if (batchNFTs.length === 0) break;
-      
+
       // Add the fetched NFTs to the result array
       nfts.push(...batchNFTs);
-      
+
       // Move to the next batch
       currentBatch++;
     }
@@ -88,14 +88,18 @@ export class CollectionService {
   /**
    * Fetches a batch of NFTs from a specific collection.
    * This private method is used by getAssetsInCollection for batch processing.
-   * 
+   *
    * @param collectionId - The unique identifier of the collection.
    * @param batch - The current batch number.
    * @param batchSize - The number of NFTs to fetch in this batch.
    * @returns A Promise that resolves to an array of NFT information objects for the current batch.
    * @throws {Error} If there's an issue fetching NFT information, except for 'NFT not found' errors.
    */
-  private async fetchNFTBatch(collectionId: string, batch: number, batchSize: number): Promise<any[]> {
+  private async fetchNFTBatch(
+    collectionId: string,
+    batch: number,
+    batchSize: number,
+  ): Promise<any[]> {
     const batchNFTs: any[] = [];
     for (let i = (batch - 1) * batchSize + 1; i <= batch * batchSize; i++) {
       try {
