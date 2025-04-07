@@ -3,6 +3,9 @@
 // API endpoint configuration
 const API_BASE_URL = 'http://localhost:3000';
 
+// Add IPFS gateway configuration at the top
+const IPFS_GATEWAY = 'https://ipfs.io/ipfs';
+
 console.log('Hedera Dynamic NFT Demo Frontend loaded successfully');
 console.log(`API endpoint configured as: ${API_BASE_URL}`);
 
@@ -174,12 +177,21 @@ document.getElementById('nft-details-form').addEventListener('submit', async (e)
         // Handle image
         const imgElement = document.getElementById('nft-display-image');
         if (result.data.metadata.image) {
-            const imageCid = result.data.metadata.image.replace('ipfs://', '');
-            imgElement.src = `${API_BASE_URL}/ipfs/${imageCid}`;
+            // Extract CID from the image field (it could be just the CID or ipfs://CID)
+            const cid = result.data.metadata.image.replace('ipfs://', '');
+            // Use the public IPFS gateway
+            imgElement.src = `${IPFS_GATEWAY}/${cid}`;
             imgElement.alt = result.data.metadata.name;
+            // Show the image container
+            document.getElementById('nft-image-container').classList.remove('d-none');
+            
+            // Log the image URL for debugging
+            console.log('Loading image from:', imgElement.src);
         } else {
             imgElement.src = 'placeholder.png';
             imgElement.alt = 'No image available';
+            // Hide the image container if no image
+            document.getElementById('nft-image-container').classList.add('d-none');
         }
         
         // Display attributes
@@ -211,12 +223,12 @@ document.getElementById('nft-details-form').addEventListener('submit', async (e)
 document.getElementById('event-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const nftIdInput = document.getElementById('nft-id');
+    const nftIdInput = document.getElementById('event-nft-id');
     const nameInput = document.getElementById('event-name');
     const descriptionInput = document.getElementById('event-description');
     
     if (!nftIdInput.value) {
-        showResponseModal('Error', { error: 'Please enter an NFT ID first' });
+        showResponseModal('Error', { error: 'Please enter an NFT ID' });
         return;
     }
     
@@ -226,20 +238,9 @@ document.getElementById('event-form').addEventListener('submit', async (e) => {
     submitButton.disabled = true;
     submitButton.innerHTML = '<span class="loading-spinner me-2"></span>Adding Event...';
     
-    // Collect custom properties
-    const attributes = {};
-    const propRows = document.querySelectorAll('#event-props-container .prop-row');
-    propRows.forEach(row => {
-        const inputs = row.querySelectorAll('input');
-        if (inputs.length >= 2 && inputs[0].value && inputs[1].value) {
-            attributes[inputs[0].value] = inputs[1].value;
-        }
-    });
-    
     const payload = {
         name: nameInput.value,
-        description: descriptionInput.value,
-        attributes
+        description: descriptionInput.value
     };
     
     const nftId = nftIdInput.value;
@@ -255,12 +256,6 @@ document.getElementById('event-form').addEventListener('submit', async (e) => {
         // Clear form
         nameInput.value = '';
         descriptionInput.value = '';
-        const container = document.getElementById('event-props-container');
-        while (container.children.length > 1) {
-            container.removeChild(container.lastChild);
-        }
-        container.querySelector('input:first-child').value = '';
-        container.querySelector('input:nth-child(2)').value = '';
     } else {
         showResponseModal('Error Adding Event', { error: result.error });
     }
@@ -273,54 +268,58 @@ async function loadNFTHistory(nftId) {
     const historyList = document.getElementById('history-list');
     historyList.innerHTML = '<li class="list-group-item text-center"><span class="loading-spinner me-2"></span>Loading history...</li>';
     
-    const result = await callApi(`/nft/${nftId}/history`, 'GET');
+    const result = await callApi(`/nft/${nftId}`, 'GET');
     
-    if (result.success && Array.isArray(result.data)) {
+    if (result.success && result.data.messages) {
         historyList.innerHTML = '';
         
-        if (result.data.length === 0) {
+        if (result.data.messages.length === 0 && !result.data.creationTime) {
             historyList.innerHTML = '<li class="list-group-item text-center text-muted">No history available</li>';
             return;
         }
         
-        result.data.forEach((event, index) => {
-            const date = new Date(event.timestamp);
+        // Add creation event
+        const creationEvent = {
+            name: 'NFT Created',
+            description: 'NFT was minted',
+            timestamp: result.data.creationTime
+        };
+        
+        // Combine all events and sort by timestamp (newest first)
+        const allEvents = [...result.data.messages, creationEvent]
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        allEvents.forEach((event) => {
+            // Safely handle the date
+            const timestamp = event?.timestamp || new Date().toISOString();
+            const date = new Date(timestamp);
             const formattedDate = date.toLocaleString();
             
             let eventClass = 'event-update';
             let eventIcon = '↑';
             
-            if (index === 0) {
+            // Safely handle event name
+            const eventName = event?.name || 'Unknown Event';
+            
+            if (eventName === 'NFT Created') {
                 eventClass = 'event-creation';
                 eventIcon = '★';
-            } else if (event.name.toLowerCase().includes('transfer')) {
+            } else if (eventName.toLowerCase().includes('transfer')) {
                 eventClass = 'event-transfer';
                 eventIcon = '↔';
             }
             
             const listItem = document.createElement('li');
-            listItem.className = `list-group-item d-flex history-item ${eventClass}`;
-            
-            // Create attributes HTML if present
-            let attributesHtml = '';
-            if (event.attributes && Object.keys(event.attributes).length > 0) {
-                attributesHtml = '<div class="mt-2">';
-                for (const [key, value] of Object.entries(event.attributes)) {
-                    attributesHtml += `<div class="attribute-badge">
-                        <span class="trait-type">${key}:</span>
-                        <span class="value">${value}</span>
-                    </div>`;
-                }
-                attributesHtml += '</div>';
-            }
+            listItem.className = `list-group-item history-item ${eventClass}`;
             
             listItem.innerHTML = `
-                <div class="history-icon">${eventIcon}</div>
-                <div class="flex-grow-1">
-                    <h6 class="mb-1">${event.name}</h6>
-                    <p class="mb-1">${event.description || ''}</p>
-                    ${attributesHtml}
-                    <small class="text-muted">${formattedDate}</small>
+                <div class="d-flex align-items-start">
+                    <div class="history-icon me-3">${eventIcon}</div>
+                    <div class="flex-grow-1">
+                        <h6 class="mb-1">${eventName}</h6>
+                        <p class="mb-1">${event?.description || ''}</p>
+                        <small class="text-muted">${formattedDate}</small>
+                    </div>
                 </div>
             `;
             
@@ -352,29 +351,54 @@ document.getElementById('add-attribute').addEventListener('click', () => {
     container.appendChild(newRow);
 });
 
-// Add property button for events
-document.getElementById('add-prop').addEventListener('click', () => {
-    const container = document.getElementById('event-props-container');
-    const newRow = document.createElement('div');
-    newRow.className = 'prop-row d-flex mb-2';
-    newRow.innerHTML = `
-        <input type="text" class="form-control me-2" placeholder="Property name">
-        <input type="text" class="form-control" placeholder="Value">
-        <button type="button" class="btn btn-sm btn-danger ms-2 remove-prop">✕</button>
-    `;
-    container.appendChild(newRow);
-});
-
-// Remove buttons for attributes and properties
+// Remove buttons for attributes
 document.addEventListener('click', (e) => {
     if (e.target.classList.contains('remove-attribute')) {
         const row = e.target.closest('.attribute-row');
         row.parentNode.removeChild(row);
     }
-    if (e.target.classList.contains('remove-prop')) {
-        const row = e.target.closest('.prop-row');
-        row.parentNode.removeChild(row);
+});
+
+// Image upload form submission
+document.getElementById('image-upload-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const fileInput = document.getElementById('image-file');
+    const submitButton = e.target.querySelector('button[type="submit"]');
+    const originalText = submitButton.textContent;
+    
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<span class="loading-spinner me-2"></span>Uploading...';
+    
+    const formData = new FormData();
+    formData.append('image', fileInput.files[0]);
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/nft/upload-image`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            // Show success message
+            const uploadResult = document.getElementById('upload-result');
+            const ipfsUrl = document.getElementById('ipfs-url');
+            ipfsUrl.textContent = result.cid;
+            uploadResult.classList.remove('d-none');
+            
+            // Auto-fill the NFT form's image field with just the CID
+            document.getElementById('nft-image').value = result.cid;
+        } else {
+            showResponseModal('Error Uploading Image', { error: result.error || 'Upload failed' });
+        }
+    } catch (error) {
+        showResponseModal('Error Uploading Image', { error: error.message });
     }
+    
+    submitButton.disabled = false;
+    submitButton.textContent = originalText;
 });
 
 // Initialize the Bootstrap modal when the DOM is fully loaded

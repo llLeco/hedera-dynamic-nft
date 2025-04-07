@@ -2,12 +2,16 @@ import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { HederaService } from '../hedera/hedera.service';
 import { CreateNFTDto } from '../dto/create-nft.dto';
 import { UpdateNFTDto } from '../dto/update-nft.dto';
+import { IpfsService } from '../ipfs/ipfs.service';
 
 @Injectable()
 export class NFTService {
   private readonly logger = new Logger(NFTService.name);
 
-  constructor(private readonly hederaService: HederaService) {}
+  constructor(
+    private readonly hederaService: HederaService,
+    private readonly ipfsService: IpfsService,
+  ) {}
 
   /**
    * Creates a new NFT in the specified collection.
