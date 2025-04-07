@@ -59,8 +59,6 @@ hedera-dynamic-nft/
 │   ├── ipfs/                      # IPFS storage integration
 │   ├── models/                    # Data models
 │   └── dto/                       # Data Transfer Objects
-├── test/                          # Comprehensive test suite
-├── docs/                          # Documentation assets
 ├── public/                        # Static assets
 ├── .env.example                   # Environment variables template
 └── package.json                   # Dependencies and scripts
@@ -90,7 +88,14 @@ hedera-dynamic-nft/
    ```bash
    cp .env.example .env
    ```
-   Edit the `.env` file with your Hedera account details and Pinata API keys.
+   Edit the `.env` file with your Hedera account details and Pinata API keys:
+   ```
+   HEDERA_NETWORK=testnet
+   HEDERA_OPERATOR_ID=0.0.123
+   HEDERA_OPERATOR_KEY=your-private-key
+   PINATA_API_KEY=your-pinata-api-key
+   PINATA_SECRET_KEY=your-pinata-secret-key
+   ```
 
 4. **Build the application**:
    ```bash
@@ -110,6 +115,15 @@ For development with hot-reloading:
 npm run start:dev
 ```
 
+Available npm scripts:
+```bash
+npm run start:dev    # Start development server with hot-reload
+npm run start:prod   # Start production server
+npm run build       # Build the application
+npm run format      # Format code using Prettier
+npm run lint        # Lint code using ESLint
+```
+
 ## Code Quality
 
 The project includes several tools to maintain high code quality:
@@ -122,30 +136,7 @@ npm run format
 npm run lint
 ```
 
-These tools are also configured to run automatically in the CI pipeline and as Git hooks to ensure consistent code quality.
-
-### Testing
-
-The project includes a comprehensive test suite:
-
-```bash
-# Run all tests
-npm test
-
-# Run only unit tests
-npm run test:unit
-
-# Run integration tests
-npm run test:integration
-
-# Run e2e tests
-npm run test:e2e
-
-# Run with coverage report
-npm run test:cov
-```
-
-See the [Test Documentation](test/README.md) for more details on the testing strategy.
+These tools are configured to run automatically in the CI pipeline and as Git hooks to ensure consistent code quality.
 
 ## Security Considerations
 
@@ -198,40 +189,90 @@ The application can be deployed to various cloud platforms:
 
 ## API Documentation
 
-Detailed API documentation is available in the [API.md](API.md) file.
+The API endpoints are documented in the following sections:
 
-## Sample Application
+### Collection Endpoints
 
-The repository includes a sample frontend application in the `public` directory to demonstrate how to interact with the API. Access it by running the server and navigating to http://localhost:3000.
+#### Create Collection
+```http
+POST /collection
+Content-Type: application/json
 
-## Use Cases
+{
+  "name": "My NFT Collection",
+  "symbol": "MNC",
+  "maxSupply": 1000
+}
+```
 
-This project can be used as a foundation for various dynamic NFT applications:
+#### Get Collection
+```http
+GET /collection/:id
+```
 
-- **Gaming Assets**: NFTs that evolve based on gameplay achievements
-- **Digital Art**: Artwork that changes based on external conditions
-- **Loyalty Programs**: Membership NFTs that gain benefits over time
-- **Event Tickets**: Tickets that change state before/during/after events
-- **Certifications**: Credentials that update as new skills are acquired
+#### List Collections
+```http
+GET /collection
+```
 
-## Contributing
+### NFT Endpoints
 
-Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting a pull request.
+#### Mint NFT
+```http
+POST /nft
+Content-Type: application/json
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+{
+  "collectionId": "0.0.123",
+  "metadata": {
+    "name": "My NFT",
+    "description": "A dynamic NFT",
+    "image": "ipfs://Qm..."
+  }
+}
+```
 
-Please ensure your code passes all tests and linting rules.
+#### Get NFT Details
+```http
+GET /nft/:collectionId/:serialNumber
+```
 
-## License
+#### Add Event to NFT
+```http
+POST /nft/:collectionId/:serialNumber/event
+Content-Type: application/json
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+{
+  "name": "Event Name",
+  "description": "Event Description"
+}
+```
 
-## Acknowledgments
+#### Get NFT History
+```http
+GET /nft/:collectionId/:serialNumber/history
+```
 
-- Hedera Hashgraph for their powerful distributed ledger technology
-- IPFS and Pinata for decentralized storage solutions
-- NestJS team for the excellent framework
+### IPFS Endpoints
+
+#### Upload Image
+```http
+POST /ipfs/upload
+Content-Type: multipart/form-data
+
+file: <image_file>
+```
+
+#### Get Image
+```http
+GET /ipfs/:cid
+```
+
+All endpoints return JSON responses. Error responses follow this format:
+```json
+{
+  "statusCode": 400,
+  "message": "Error message",
+  "error": "Bad Request"
+}
+```
